@@ -238,7 +238,7 @@ Four additive boosts at +0.05 each, evaluated independently. Confidence accumula
 
 **Boost 4: OI delta cross-aligned, with cross-age cap circuit breaker**
 - Skip boost entirely if `cross_age_bars > CROSS_AGE_CAP_BARS_V2` (cross too old for OI window to be informative)
-- Read `indicators['oi_history']` (DataFrame with `ts` and `open_interest_value` columns)
+- Read `indicators['oi_history']` (DataFrame with `ts` and `open_interest` columns)
 - Find latest row with `ts <= breakout_candle_close_ts` → `oi_now`
 - Find latest row with `ts <= cross_bar_timestamp` → `oi_at_cross`
 - If either query returns no row: skip boost (substrate gap, no boost applied, no error)
@@ -398,7 +398,9 @@ Per Brief v12.2 Section 10 standing instruction "Re-read before deciding," Claud
 3. Indicator tables post-merge (commit 20d78fe) — confirm 5m table has columns: `ema_21`, `sma_50`, `ema_50`, `sma_100`, `sma_250`, `bb_middle`, `volume_ma_25`, `rsi_14`, `volume`, `timestamp`. (MA mirror prep at 4ede661 added ema_50, ema_100, ema_250, sma_21 to 5m; sma_50/sma_100/sma_250 from prior schema.)
 4. Indicator tables — confirm 1h table has columns: `ema_21`, `sma_10`, `sma_20`, `sma_50` (existing pre-merge).
 5. `tests/` — confirm pytest fixture conventions used by detect_a_v2 tests; reuse same patterns for detect_d_v2 tests.
-6. `oi_history` DataFrame contract — confirm `ts` and `open_interest_value` are the exact column names produced by `open_interest_ws` query helper. If column names differ, surface deviation; do not silently rename.
+6. `oi_history` DataFrame contract — confirm `ts` and `open_interest` are the exact column names produced by `open_interest_ws` query helper. If column names differ, surface deviation; do not silently rename.
+
+   **Resolution (Session 40):** Use `open_interest` (contracts) per cross-detector consistency with detect_a_v2 and substrate decision 5 intent. `open_interest_value` (USD) was a V39 drafting error — USD-OI conflates accumulation with price drift in trend direction.
 
 Surface any deviation found. Do not absorb silently.
 
