@@ -362,39 +362,30 @@ Each soft-boost test uses the appropriate base fixture and modifies the single r
 
 ## Sequencing for Claude Code
 
-Five commits on branch `phase3-v2-detect-d` (off main HEAD `20d78fe`). Each commit independently passes its scoped tests. Architect reviews diff per commit per Brief v12.2 Section 10 standing instruction "Surface deviations, do not absorb them."
+**Sequencing revision (Session 40):** original 5-commit sequence (Steps 1-5) consolidated to 3-commit sequence after Session 40 architect decision. Rationale: Stages 5 (stop placement), 7 (base emission), and 4 (counterfactual logging) are tightly-coupled bolt-ons to the hard-gate skeleton with no independent failure-mode worth a separate review cycle — they all execute in the all-hard-gates-pass path, share locals, and have no internal interaction surface that would benefit from sequential review. Stage 6 (soft confidence boosts) is the second genuinely-separable risk surface — its 4 boost computations have independent threshold logic and substrate-key dependencies, deserving a distinct review pass. Commit count reduces from 5 to 3 without losing review coverage; per-test scope unchanged at 29 total.
 
-**Step 1 — Constants + Stage 1+2+3 hard gates skeleton.**
+Three commits on branch `phase3-v2-detect-d` (off main HEAD `20d78fe`). Each commit independently passes its scoped tests. Architect reviews diff per commit per Brief v12.3 Section 10 standing instruction "Surface deviations, do not absorb them."
+
+**Step 1 — Constants + Stage 1+2+3 hard gates skeleton.** SHIPPED at `c19372a`.
 - File: `apex/signals/setups.py`
 - Change: add detect_d v2 constants block + `detect_d_v2()` with Stage 1 (direction determination), Stage 2 (cross detection + cross_bar_idx + cross_age_bars), Stage 3 (pullback + volume gates). Returns None on every path (no Signal emission yet).
 - Verify: tests 1-12 pass (all hard gate tests expect None across both branches).
 - Commit: `phase3-v2 step 1: detect_d_v2 hard gates skeleton (long+short)`
 
-**Step 2 — Stage 7 base emission with fixed bb_middle stop, no boosts.**
+**Step 2 — Functional core (Stages 5+7+4 consolidated).**
 - File: `apex/signals/setups.py`
-- Change: complete hard-gate-pass path → Signal emission with base confidence 0.75, fixed `stop=curr['bb_middle']`, `tp=None`, `tp_strategy='structural_5m_bb'`, `account_target='scalp'`, direction from Stage 1. Empty soft-boost set, no counterfactual yet.
-- Verify: tests 13-17 pass.
-- Commit: `phase3-v2 step 2: detect_d_v2 base signal emission (long+short)`
+- Change: add Stage 5 (direction-aware MA-stack ranking with `len < 2` fallback to bb_middle, pathological-case None on stop-entry inversion), Stage 4 (parallel ema_21/ema_50 cross via shared walk-back helper, logged as `'counterfactual_ema21_ema50_cross_age_bars:<int|None>'` in confirming_indicators), Stage 7 (Signal emission with `setup_type='D'`, `tp=None`, `tp_strategy='structural_5m_bb'`, `account_target='scalp'`, `confidence=CONFIDENCE_BASE`, no boosts).
+- Verify: tests 13-24 pass (12 new tests — 4 stop-placement + 4 base-emission + 4 counterfactual-logging).
+- Commit: `phase3-v2 step 2: detect_d_v2 functional core (stop + emission + counterfactual)`
 
-**Step 3 — Stage 5 stop placement (MA-stack ranking + fallback, both directions).**
+**Step 3 — Stage 6 soft boosts (RSI, volume 2x, funding sign-aware, OI delta with cross-age cap) + OI column patch.**
 - File: `apex/signals/setups.py`
-- Change: replace fixed `stop=bb_middle` with Stage 5 direction-aware MA-stack ranking + Rule 9 fallback hierarchy. Pathological-case None return on stop-entry inversion.
-- Verify: tests 18-23 pass.
-- Commit: `phase3-v2 step 3: detect_d_v2 stop placement via MA stack`
+- Change: add four boost computations consuming `indicators` dict keys, direction-aware where applicable. OI boost includes the cross-age-cap circuit breaker per Gap 7 resolution. Reads `oi_history.iloc[...]['open_interest']` (contracts) per Session 40 Pre-Write Item 6 architect resolution.
+- Also patches this proposal's §6 Stage 6 Boost 4 + §9 Pre-Write Verification Item 6: `s/open_interest_value/open_interest/g` within those two scopes only. Patches commit to apex-planning in a SEPARATE commit BEFORE Step 3 ships to apex.
+- Verify: tests 25-29 pass. Full regression: tests 1-29 all pass on single run. Outer suite: 80 (existing post-Step 1) + 17 (Step 2 + Step 3 new) = 97 tests, all green.
+- Commit: `phase3-v2 step 3: detect_d_v2 soft confidence boosts`
 
-**Step 4 — Stage 4 counterfactual cross detection (parallel substrate, both directions).**
-- File: `apex/signals/setups.py`
-- Change: add Stage 4 parallel ema_21/ema_50 cross computation matching live-trigger direction; append `'ma_pair_alt_ema21_ema50_cross_within_n:{bool}'` to `confirming_indicators`.
-- Verify: existing tests 13-23 still pass with the new metadata string present in `confirming_indicators` (parametrized assertion).
-- Commit: `phase3-v2 step 4: detect_d_v2 counterfactual MA-pair logging`
-
-**Step 5 — Stage 6 soft boosts (RSI, volume 2x, funding sign-aware, OI delta with cross-age cap).**
-- File: `apex/signals/setups.py`
-- Change: add four boost computations consuming `indicators` dict keys, direction-aware where applicable. OI boost includes the cross-age-cap circuit breaker per Gap 7 resolution.
-- Verify: tests 24-29 pass. Full regression: tests 1-29 all pass on single run. Outer suite: 68 (existing) + 29 (new) = 97 tests, all green.
-- Commit: `phase3-v2 step 5: detect_d_v2 soft confidence boosts`
-
-After step 5: branch ready for chat-Claude diff review across all 5 commits, then merge to main.
+After Step 3: branch ready for chat-Claude diff review across all 3 commits, then merge to main.
 
 ---
 
