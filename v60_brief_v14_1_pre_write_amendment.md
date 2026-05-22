@@ -2,11 +2,13 @@
 
 **Priority:** HIGH
 **Origin:** V60 W3 Step 1 end-of-step retrospective (2026-05-22)
-**Ship branch:** `w3-step1-hot-reload` (pushed to origin, merge to main pending architect action)
-**Affected commits on `w3-step1-hot-reload`:**
-- `90a1fec` — CLAUDE.md operational form (LIVE)
-- `09bc93b` — CLAUDE.md brief pointer bump v13.3 → v14 (companion item, completed)
+**Ship branch:** `w3-step1-hot-reload` — pushed to origin, **NOT YET merged to main** at handoff time
+**Affected commits on `w3-step1-hot-reload` (branch-only, not in main yet):**
+- `90a1fec` — CLAUDE.md operational form for the proposed rule
+- `09bc93b` — CLAUDE.md brief pointer bump v13.3 → v14 (companion item)
 - `e66e48a` — W3 Step 1 V60 revision (split watcher to `apex/config_watcher.py`) — concrete evidence of the discipline gap
+
+> ⚠️ **Sequencing dependency for W3 Step 2:** W3 Step 2 (supervised-task lifecycle — Primitive 2) cannot start a clean pre-write contract until `w3-step1-hot-reload` merges to `main`. See "Sequencing" section near the end of this doc for details. Chat-Claude review of THIS amendment proposal does NOT depend on that merge; W3 Step 2 kickoff DOES.
 
 ---
 
@@ -139,6 +141,31 @@ Body discipline + Mode A/B template should be verbatim from the CLAUDE.md operat
 - **Operational form:** `CLAUDE.md` "Architect Loop / Pre-Write Architectural Read" subsection (V60 commit `90a1fec`).
 - **V60 W3 Step 1 substantive ship:** `w3-step1-hot-reload` branch, 5 commits — `bbce4b0`, `00b0071`, `9d98b03`, `0cb3137`, `e66e48a`.
 - **V60 trigger evidence (the actual revision the rule would have prevented):** commit `e66e48a` — moves ConfigWatcher to `apex/config_watcher.py`, adds `replace_settings()` chokepoint in `apex/config.py`, drops `stop_config_watcher` call from `apex/main.py` finally block.
+
+---
+
+## Sequencing — what must happen before W3 Step 2 starts
+
+There are two independent thread-lines downstream of this handoff:
+
+**Thread A — Brief v14.1 amendment absorption (chat-Claude review).** Evaluating, approving, and canonicalizing the proposed §10 Theme 4 candidate into Brief v14.1. Does **NOT** require any merge to complete first — chat-Claude can review this proposal against the operational form (which is already on the `w3-step1-hot-reload` branch and is content-frozen there).
+
+**Thread B — W3 Step 2 kickoff (supervised-task lifecycle, v14 Primitive 2).** **DOES** require `w3-step1-hot-reload` to land on `main` first. Step 2's pre-write contract will reference W3 Step 1's substrate:
+
+- The `config_hot_reload_*` Settings fields (read by the supervisor's flag-polling loop at call-time)
+- The `apex.config.replace_settings()` chokepoint (future hook for supervisor-initiated swaps)
+- The `apex.config_watcher` module (provides the hot-reload mechanism that supervisor's call-time reads depend on)
+
+If W3 Step 2 branches off main before Step 1 lands, Step 2's branch is missing the substrate Step 2 builds on, and Step 2's pre-write contract references would point at non-existent code. This dependency is mechanical (Step 2's substrate references at the code level), not policy.
+
+### Required actions before W3 Step 2 pre-write drafting
+
+1. Merge `w3-step1-hot-reload` to `main` — either via GitHub PR UI at https://github.com/rafamv/apex/pull/new/w3-step1-hot-reload, or via local `--no-ff` merge from primary apex repo.
+2. Push `main` to `origin`.
+3. (Optional) Droplet sync per existing project pattern.
+4. (Optional, this Brief v14.1 amendment landing) — chat-Claude approves the new §10 Theme 4 candidate; CLAUDE.md operational form stays as-is unless chat-Claude proposes wording changes; Brief v14.1 ships with the new candidate.
+
+Steps 1-3 are blockers for W3 Step 2 substrate availability. Step 4 (Brief v14.1 absorption) is independent and can land in any order relative to W3 Step 2 — but if it lands BEFORE W3 Step 2 starts, W3 Step 2's own pre-write read will benefit from the canonicalized rule.
 
 ---
 
